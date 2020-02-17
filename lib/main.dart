@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 void main() {
   runApp(new MaterialApp(
     home: new MyApp(), // becomes the route named '/'
-    routes: <String, WidgetBuilder>{
-      '/book_detail': (BuildContext context) => new BookDetail(),
-    },
   ));
 }
 
@@ -19,6 +16,9 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       home: MyHomePage(title: 'ブックレンタルアプリ'),
+	    routes: <String, WidgetBuilder>{
+		    '/book_detail': (BuildContext context) => new BookDetail(),
+	    },
     );
   }
 }
@@ -83,7 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   AspectRatio(
                     aspectRatio: 18.0 / 11.0,
                     child: Image.asset(
-                        'assets/f_f_object_174_s128_f_object_174_0bg.png.png'),
+		                    'assets/f_f_object_174_s128_f_object_174_1bg.png'),
                   ),
                   Padding(
                     padding: EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 8.0),
