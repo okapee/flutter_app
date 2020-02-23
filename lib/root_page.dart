@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/home_page.dart';
-import 'package:flutter_app/main.dart';
 
 import 'auth.dart';
 import 'home_page.dart';
