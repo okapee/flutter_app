@@ -1,10 +1,14 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/home_page.dart';
 
-import 'auth.dart';
-import 'home_page.dart';
-import 'login_page.dart';
+import 'authentication.dart';
+import 'homepage.dart';
+import 'login_signup_page.dart';
+
+enum AuthStatus {
+  NOT_DETERMINED,
+  NOT_LOGGED_IN,
+  LOGGED_IN,
+}
 
 class RootPage extends StatefulWidget {
   RootPage({this.auth});
@@ -15,49 +19,75 @@ class RootPage extends StatefulWidget {
   State<StatefulWidget> createState() => new _RootPageState();
 }
 
-enum AuthStatus {
-  notSignedIn,
-  signedIn,
-}
-
 class _RootPageState extends State<RootPage> {
-  AuthStatus authStatus = AuthStatus.notSignedIn;
+  AuthStatus authStatus = AuthStatus.NOT_DETERMINED;
+  String _userId = "";
 
+  @override
   void initState() {
     super.initState();
-    widget.auth.currentUser().then((userId) {
+    widget.auth.getCurrentUser().then((user) {
       setState(() {
+        if (user != null) {
+          _userId = user?.uid;
+        }
         authStatus =
-            userId == null ? AuthStatus.notSignedIn : AuthStatus.signedIn;
+        user?.uid == null ? AuthStatus.NOT_LOGGED_IN : AuthStatus.LOGGED_IN;
       });
     });
   }
 
-  void _signedIn() {
+  void loginCallback() {
+    widget.auth.getCurrentUser().then((user) {
+      setState(() {
+        _userId = user.uid.toString();
+      });
+    });
     setState(() {
-      authStatus = AuthStatus.signedIn;
+      authStatus = AuthStatus.LOGGED_IN;
     });
   }
 
-  void _signedOut() {
+  void logoutCallback() {
     setState(() {
-      authStatus = AuthStatus.notSignedIn;
+      authStatus = AuthStatus.NOT_LOGGED_IN;
+      _userId = "";
     });
+  }
+
+  Widget buildWaitingScreen() {
+    return Scaffold(
+      body: Container(
+        alignment: Alignment.center,
+        child: CircularProgressIndicator(),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     switch (authStatus) {
-      case AuthStatus.notSignedIn:
-        return new LoginPage(
+      case AuthStatus.NOT_DETERMINED:
+        return buildWaitingScreen();
+        break;
+      case AuthStatus.NOT_LOGGED_IN:
+        return new LoginSignupPage(
           auth: widget.auth,
-          onSignedIn: _signedIn,
+          loginCallback: loginCallback,
         );
-      case AuthStatus.signedIn:
-        return new HomePage(
-          auth: widget.auth,
-          onSignedOut: _signedOut,
-        );
+        break;
+      case AuthStatus.LOGGED_IN:
+        if (_userId.length > 0 && _userId != null) {
+          return new HomePage(
+            userId: _userId,
+            auth: widget.auth,
+            logoutCallback: logoutCallback,
+          );
+        } else
+          return buildWaitingScreen();
+        break;
+      default:
+        return buildWaitingScreen();
     }
   }
 }
