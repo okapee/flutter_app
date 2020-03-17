@@ -1,5 +1,4 @@
 import 'dart:developer';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -45,7 +44,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   // TODO: グループIDで登録されている本の一覧をDBから取得し、そのレコード数をCardの要素数とする
   static int length = 30;
-  var cardlist = List.generate(length, (index) => index);
+  var cardList = List.generate(length, (index) => index);
 
   @override
   Widget build(BuildContext context) {
@@ -57,14 +56,12 @@ class _MyHomePageState extends State<MyHomePage> {
         children: <Widget>[
           Expanded(
             flex: 1,
-            child: Row(
-              children: <Widget>[
-                const FlutterLogo(),
-                const Expanded(
-                  child: Text('ようこそ！ 岡崎 さん'),
-                ),
-                const Icon(Icons.sentiment_very_satisfied),
-              ],
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              child: ListTile(
+                leading: const FlutterLogo(),
+                title: Text('ようこそ、$userId さん'),
+              ),
             ),
           ),
           Expanded(
