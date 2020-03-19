@@ -1,8 +1,14 @@
 import 'dart:developer';
+import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
+import 'package:flutter_app/booksearch_registration.dart';
+import 'package:logging/logging.dart';
 import 'authentication.dart';
+import 'package:flutter_advanced_networkimage/provider.dart';
+
+final log = Logger('HomePage');
 
 class HomePage extends StatelessWidget {
   // This widget is the root of your application.
@@ -15,6 +21,11 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((LogRecord rec) {
+      print('${rec.level.name}: ${rec.time}: ${rec.message}');
+    });
+
     return MaterialApp(
 //        title: 'ブックレンタルアプリ',
         theme: ThemeData(
@@ -48,6 +59,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    int _counter = 0;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -66,66 +79,46 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           Expanded(
             flex: 9,
-            child: GridView.count(
-              crossAxisCount: 2,
-              padding: EdgeInsets.all(16.0),
-              childAspectRatio: 8.0 / 9.0,
-              children: <Widget>[
-                Card(
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      AspectRatio(
-                        aspectRatio: 18.0 / 11.0,
-                        child: Image.asset(
-                            'assets/f_f_object_174_s128_f_object_174_0bg.png'),
-                      ),
-                      Padding(
-                        padding: EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 8.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text('Title'),
-                            SizedBox(height: 8.0),
-                            Text('First Text'),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                InkWell(
-                  onTap: () {
-                    Navigator.of(context).pushNamed('/book_detail');
-                  },
-                  child: Card(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        AspectRatio(
-                          aspectRatio: 18.0 / 11.0,
-                          child: Image.asset(
-                              'assets/f_f_object_174_s128_f_object_174_1bg.png'),
-                        ),
-                        Padding(
-                          padding: EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Text('Title'),
-                              SizedBox(height: 8.0),
-                              Text('Secondry Text'),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+            child: StreamBuilder(
+                stream: Firestore.instance.collection('books').snapshots(),
+                builder: (BuildContext context,
+                    AsyncSnapshot<QuerySnapshot> snapshot) {
+                  if (!snapshot.hasData)
+                    return Center(
+                      child: CircularProgressIndicator(),
+                    );
+
+                  return GridView.builder(
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2),
+                    itemCount: snapshot.data.documents.length,
+                    padding: EdgeInsets.all(2.0),
+                    itemBuilder: (BuildContext context, int index) {
+                      return Container(
+                        child: GestureDetector(
+                            onTap: () {
+                              Navigator.of(context).pushNamed('/book_detail');
+                            },
+                            child: Column(
+                              children: <Widget>[
+                                Image(
+                                  image: AdvancedNetworkImage(
+                                    snapshot.data.documents[index]['thumbnail'],
+                                    useDiskCache: true,
+                                    cacheRule: CacheRule(
+                                        maxAge: const Duration(days: 7)),
+                                  ),
+                                  fit: BoxFit.cover,
+                                ),
+                                Text(snapshot.data.documents[index]['title']),
+                              ],
+                            )),
+                        padding: EdgeInsets.all(2.0),
+                      );
+                    },
+                  );
+                }),
+          )
         ],
       ),
     );
