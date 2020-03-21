@@ -1,12 +1,12 @@
-import 'dart:developer';
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_app/booksearch_registration.dart';
+import 'package:flutter_app/booksearch_and_registration.dart';
 import 'package:logging/logging.dart';
 import 'authentication.dart';
 import 'package:flutter_advanced_networkimage/provider.dart';
+import 'package:flutter_icons/flutter_icons.dart';
 
 final log = Logger('HomePage');
 
@@ -33,7 +33,9 @@ class HomePage extends StatelessWidget {
         ),
         home: MyHomePage(title: 'ブックレンタルアプリ', userId: this.userId),
         routes: <String, WidgetBuilder>{
-          '/book_detail': (BuildContext context) => new BookDetail(),
+          '/book_detail': (BuildContext context) => BookDetail(),
+          '/booksearch_and_registration': (BuildContext context) =>
+              BooksearchAndRegistration(),
         });
   }
 }
@@ -53,13 +55,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   final String userId;
 
-  // TODO: グループIDで登録されている本の一覧をDBから取得し、そのレコード数をCardの要素数とする
-  static int length = 30;
-  var cardList = List.generate(length, (index) => index);
-
   @override
   Widget build(BuildContext context) {
-    int _counter = 0;
+    String nickname;
+    getNickname(userId).then((d) => nickname = d.toString());
 
     return Scaffold(
       appBar: AppBar(
@@ -68,17 +67,18 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Column(
         children: <Widget>[
           Expanded(
-            flex: 1,
+            flex: 0,
             child: Container(
-              margin: const EdgeInsets.all(4),
+              margin: const EdgeInsets.all(2.0),
               child: ListTile(
-                leading: const FlutterLogo(),
-                title: Text('ようこそ、$userId さん'),
+                leading: Icon(MaterialIcons.book),
+                title: Text('ようこそ、$nickname さん'),
+                dense: true,
               ),
             ),
           ),
           Expanded(
-            flex: 9,
+            flex: 8,
             child: StreamBuilder(
                 stream: Firestore.instance.collection('books').snapshots(),
                 builder: (BuildContext context,
@@ -92,33 +92,63 @@ class _MyHomePageState extends State<MyHomePage> {
                     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2),
                     itemCount: snapshot.data.documents.length,
-                    padding: EdgeInsets.all(2.0),
                     itemBuilder: (BuildContext context, int index) {
                       return Container(
+                        margin: EdgeInsets.all(8.0),
+                        padding: EdgeInsets.all(8.0),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Colors.black38,
+                            width: 2.0,
+                          ),
+                          borderRadius:
+                          new BorderRadius.all(new Radius.circular(10.0)),
+                        ),
                         child: GestureDetector(
                             onTap: () {
                               Navigator.of(context).pushNamed('/book_detail');
                             },
                             child: Column(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: <Widget>[
                                 Image(
                                   image: AdvancedNetworkImage(
                                     snapshot.data.documents[index]['thumbnail'],
+                                    height: 120,
                                     useDiskCache: true,
                                     cacheRule: CacheRule(
                                         maxAge: const Duration(days: 7)),
                                   ),
-                                  fit: BoxFit.cover,
+                                  fit: BoxFit.scaleDown,
                                 ),
-                                Text(snapshot.data.documents[index]['title']),
+                                SpaceBox.height(4),
+                                Text(snapshot.data.documents[index]['title'],
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 10.0,
+                                      fontStyle: FontStyle.normal,
+                                    )),
                               ],
                             )),
-                        padding: EdgeInsets.all(2.0),
                       );
                     },
                   );
                 }),
-          )
+          ),
+          Expanded(
+            flex: 0,
+            child: Container(
+              margin: EdgeInsets.all(4.0),
+              child: FloatingActionButton.extended(
+                onPressed: () =>
+                    Navigator.of(context)
+                        .pushNamed('/booksearch_and_registration'),
+                backgroundColor: Colors.blue,
+                icon: Icon(Icons.add),
+                label: const Text('本の追加'),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -139,4 +169,20 @@ class _BookDetailState extends State<BookDetail> {
       body: Container(),
     );
   }
+}
+
+class SpaceBox extends SizedBox {
+  SpaceBox({double width = 8, double height = 8})
+      : super(width: width, height: height);
+
+  SpaceBox.width([double value = 8]) : super(width: value);
+
+  SpaceBox.height([double value = 8]) : super(height: value);
+}
+
+Future getNickname(String userId) async {
+  DocumentSnapshot docSnapshot =
+  await Firestore.instance.collection('users').document(userId).get();
+
+  return docSnapshot['nickname'];
 }
