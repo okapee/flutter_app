@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'authentication.dart';
 import 'package:flutter_advanced_networkimage/provider.dart';
 import 'package:flutter_icons/flutter_icons.dart';
+import 'header.dart';
 
 final log = Logger('HomePage');
 
@@ -61,9 +62,7 @@ class _MyHomePageState extends State<MyHomePage> {
     getNickname(userId).then((d) => nickname = d.toString());
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      appBar: Header(),
       body: Column(
         children: <Widget>[
           Expanded(

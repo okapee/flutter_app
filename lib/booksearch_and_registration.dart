@@ -2,6 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'authentication.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'header.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_advanced_networkimage/provider.dart';
 
 class BooksearchAndRegistration extends StatelessWidget {
   BooksearchAndRegistration(
@@ -23,18 +27,6 @@ class BooksearchAndRegistration extends StatelessWidget {
   }
 }
 
-//MaterialApp(
-////        title: 'ブックレンタルアプリ',
-//theme: ThemeData(
-//primarySwatch: Colors.blue,
-//),
-//home: MyHomePage(title: 'ブックレンタルアプリ', userId: this.userId),
-//routes: <String, WidgetBuilder>{
-//'/book_detail': (BuildContext context) => BookDetail(),
-//'/booksearch_and_registration': (BuildContext context) =>
-//BooksearchAndRegistration(),
-//});
-
 class SearchAndRegistration extends StatefulWidget {
   SearchAndRegistration({Key key, this.title, this.userId}) : super(key: key);
 
@@ -49,9 +41,7 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
   _SearchAndRegistrationState({this.userId});
 
   final String userId;
-  List<String> itemList = [];
-
-  final baseUrl = 'https://www.googleapis.com/books/v1/volumes?';
+  List<Book> bookList = [];
 
 // Create a text controller and use it to retrieve the current value
 // of the TextField.
@@ -67,38 +57,69 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
+      appBar: Header(),
       body: Container(
         margin: EdgeInsets.all(10.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: <Widget>[
-                  Expanded(
-                    flex: 8,
-                    child: TextField(
-                        // Now that you have a TextEditingController, wire it up to a text field using the controller property:
-//                  controller: myController,
+            Expanded(
+              flex: 2,
+              child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: <Widget>[
+                    Expanded(
+                      flex: 8,
+                      child: TextField(
+                        controller: myController,
+                        decoration: InputDecoration(
+                          hintText: '検索したいキーワードを入力',
+                          filled: true,
+                          prefixIcon: Icon(
+                            Icons.book,
+                            size: 20,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(Icons.search),
+                            onPressed: () {
+                              setState(() {
+                                buildItemList(bookList, myController.text);
+                                myController.clear();
+                              });
+                            },
+                          ),
                         ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: FlatButton(
-                      child: Text("検索"),
-                      color: Colors.orange,
-                      textColor: Colors.white,
-                      onPressed: () {
-                        return SearchBooks();
-                      },
+                      ),
                     ),
-                  ),
-                ]),
-            SpaceBox.height(10),
-            Text('test'),
+                  ]),
+            ),
+            Expanded(
+              flex: 8,
+              child: Center(
+                  child: (bookList == null || bookList.length == 0)
+                      ? Text("Loading....")
+                      : ListView.builder(
+                      itemBuilder: (BuildContext context, int index) {
+                        return Card(
+                          elevation: 4.0,
+                          child: ListTile(
+                            contentPadding: EdgeInsets.all(4.0),
+                            leading: Image(
+                              image: AdvancedNetworkImage(
+                                bookList[index].thumbnail,
+                                height: 120,
+                                useDiskCache: true,
+                                cacheRule: CacheRule(
+                                    maxAge: const Duration(days: 7)),
+                              ),
+                              fit: BoxFit.scaleDown,
+                            ),
+                            title: Text("${bookList[index].title}"),
+                          ),
+                        );
+                      },
+                      itemCount: bookList.length)),
+            )
           ],
         ),
       ),
@@ -106,8 +127,7 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
   }
 }
 
-// TODO: 未実装
-SearchBooks() {
+RegisterBooks() {
   return StreamBuilder<QuerySnapshot>(
     stream: Firestore.instance.collection('test').snapshots(),
     builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -129,38 +149,47 @@ SearchBooks() {
   );
 }
 
+Future<List<Book>> buildItemList(List<Book> bookList, String input) async {
+//  final baseUrl = 'https://www.googleapis.com/books/v1/volumes?';
+  String baseUrl = 'https://www.googleapis.com/books/v1/volumes?q=';
+  String getUrl = baseUrl + input;
+
+  final response = await http.get(getUrl);
+
+  if (response.statusCode == 200) {
+    Map<String, dynamic> map = json.decode(response.body);
+    List<dynamic> data = map["items"];
+
+    for (int i = 0; i < data.length; i++) {
+      bookList.add(Book(
+          data[i]['volumeInfo']['authors'],
+          data[i]['volumeInfo']['categories'],
+          data[i]['volumeInfo']['description'],
+          data[i]['volumeInfo']['pageCount'],
+          data[i]['volumeInfo']['publishedDate'],
+          data[i]['volumeInfo']['publisher'],
+          data[i]['volumeInfo']['imageLinks']['thumbnail'],
+          data[i]['volumeInfo']['title']));
+    }
+  } else {
+    throw Exception('Failed to load books from API');
+  }
+
+  return bookList;
+}
+
 class Book {
-  final List<String> authors;
-  final List<String> categories;
+  final List authors;
+  final List categories;
   final String description;
   final int pageCount;
-  final String publishDate;
+  final String publishedDate;
   final String publisher;
   final String thumbnail;
   final String title;
 
-  Book(
-      {this.authors,
-      this.categories,
-      this.description,
-      this.pageCount,
-      this.publishDate,
-      this.publisher,
-      this.thumbnail,
-      this.title});
-
-  factory Book.fromJson(Map<String, dynamic> json) {
-    return Book(
-      authors: json['authors'],
-      categories: json['categories'],
-      description: json['description'],
-      pageCount: json['pageCount'],
-      publishDate: json['publishDate'],
-      publisher: json['publisher'],
-      thumbnail: json['thumbnail'],
-      title: json['title'],
-    );
-  }
+  Book(this.authors, this.categories, this.description, this.pageCount,
+      this.publishedDate, this.publisher, this.thumbnail, this.title);
 }
 
 class SpaceBox extends SizedBox {
