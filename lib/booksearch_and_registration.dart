@@ -39,7 +39,11 @@ class BooksearchAndRegistration extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: SearchAndRegistration(title: 'ブックレンタルアプリ', userId: this.userId));
+        home: SearchAndRegistration(title: 'ブックレンタルアプリ', userId: this.userId),
+        routes: <String, WidgetBuilder>{
+          '/book_detail': (BuildContext context) => BookDetail(),
+          '/homepage': (BuildContext context) => HomePage(),
+        });
   }
 }
 
@@ -89,9 +93,12 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
                           suffixIcon: IconButton(
                             icon: Icon(Icons.search),
                             onPressed: () {
+                              FocusScope.of(context).unfocus();
                               setState(() {
+//                                bookList = [];
                                 buildItemList(bookList, myController.text);
-                                myController.clear();
+                                WidgetsBinding.instance.addPostFrameCallback(
+                                        (_) => myController.clear());
                               });
                             },
                           ),
@@ -106,7 +113,6 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
                   child: (bookList == null || bookList.length == 0)
                       ? Text("Book List is displayed here!")
                       : ListView.builder(
-                    // TODO: ListViewがクリアされずアイテムが追加されていってしまう問題への対処
                     // TODO: GestureDetectorが一部のアイテムにしか効いていない
                       itemBuilder: (BuildContext context, int index) {
                         return GestureDetector(
@@ -147,6 +153,130 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
       ),
     );
   }
+
+  void showCustomDialogWithImage(BuildContext context,
+      List<String> authors,
+      List<String> categories,
+      String description,
+      int pageCount,
+      String publishedDate,
+      String publisher,
+      String thumbnail,
+      String title) {
+    // 登録者のレビューを格納する変数
+    String _review;
+    final myController = TextEditingController();
+
+    // 登録用のMapを作成
+    Map<String, dynamic> book_data = <String, dynamic>{
+      "authors": authors,
+      "categories": categories,
+      "description": description,
+      "pageCount": pageCount,
+      "publishedDate": publishedDate,
+      "publisher": publisher,
+      "thumbnail": thumbnail,
+      "title": title,
+    };
+
+    log.info('カスタムダイアログを表示する。book_data is ' + book_data.toString());
+
+    FlashHelper.init(context);
+
+    Dialog dialogWithImage = Dialog(
+      child: Container(
+        height: 300.0,
+        width: 300.0,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            Container(
+              padding: EdgeInsets.all(12),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(color: Colors.grey[300]),
+              child: Text(
+                "登録画面",
+                style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.all(10.0),
+              child: Column(
+                children: <Widget>[
+                  Text(title + ' を登録する場合、評価とおすすめポイントを入力し、OKを押してください。'),
+                  TextField(
+                    controller: myController,
+                    keyboardType: TextInputType.multiline,
+                    maxLines: null,
+                    textAlign: TextAlign.left,
+                  )
+                ],
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                RaisedButton(
+                    color: Colors.blue,
+                    child: Text('登録',
+                        style: TextStyle(fontSize: 18.0, color: Colors.white)),
+                    onPressed: () {
+                      Scaffold.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('登録が完了しました。'),
+                          duration: const Duration(seconds: 5),
+                        ),
+                      );
+
+                      if (checkTitle.contains(book_data['title'])) {
+                        log.info('2重登録チェック');
+                        Navigator.pop(context);
+                      } else {
+                        setData('books', book_data);
+                        Navigator.of(context).pushNamed('/homepage');
+                      }
+                    }),
+//                  onPressed: () {
+//                    Navigator.of(context)
+//                        .push(MaterialPageRoute(builder: (context) {
+//                      return Overlay(
+//                        initialEntries: [
+//                          OverlayEntry(builder: (context) {
+//                            return FlashPage();
+//                          }),
+//                        ],
+//                      );
+//                    }));
+//                  }
+
+                SizedBox(
+                  width: 20,
+                ),
+                RaisedButton(
+                  color: Colors.red,
+                  onPressed: () {
+                    // カスタムダイアログを閉じる
+                    Navigator.of(context).pop();
+                  },
+                  child: Text(
+                    'キャンセル',
+                    style: TextStyle(fontSize: 18.0, color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+
+    showDialog(
+        context: context, builder: (BuildContext context) => dialogWithImage);
+  }
 }
 
 Future<List<Book>> buildItemList(List<Book> bookList, String input) async {
@@ -156,6 +286,7 @@ Future<List<Book>> buildItemList(List<Book> bookList, String input) async {
   final response = await http.get(getUrl);
 
   if (response.statusCode == 200) {
+    bookList.clear();
     Map<String, dynamic> map = json.decode(response.body);
     List<dynamic> data = map["items"];
 
@@ -191,138 +322,6 @@ class Book {
       this.publishedDate, this.publisher, this.thumbnail, this.title);
 }
 
-void showCustomDialogWithImage(BuildContext context,
-    List<String> authors,
-    List<String> categories,
-    String description,
-    int pageCount,
-    String publishedDate,
-    String publisher,
-    String thumbnail,
-    String title) {
-  // 登録者のレビューを格納する変数
-  String _review;
-  final myController = TextEditingController();
-
-  // 登録用のMapを作成
-  Map<String, dynamic> book_data = <String, dynamic>{
-    "authors": authors,
-    "categories": categories,
-    "description": description,
-    "pageCount": pageCount,
-    "publishedDate": publishedDate,
-    "publisher": publisher,
-    "thumbnail": thumbnail,
-    "title": title,
-  };
-
-  FlashHelper.init(context);
-
-  Dialog dialogWithImage = Dialog(
-    child: Container(
-      height: 300.0,
-      width: 300.0,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Container(
-            padding: EdgeInsets.all(12),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: Colors.grey[300]),
-            child: Text(
-              "登録画面",
-              style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600),
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.all(10.0),
-            child: Column(
-              children: <Widget>[
-                Text(title + ' を登録する場合、評価とおすすめポイントを入力し、OKを押してください。'),
-                TextField(
-                  controller: myController,
-                  keyboardType: TextInputType.multiline,
-                  maxLines: null,
-                  textAlign: TextAlign.left,
-                )
-              ],
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              RaisedButton(
-                  color: Colors.blue,
-                  onPressed: () {
-                    Navigator.of(context)
-                        .push(MaterialPageRoute(builder: (context) {
-                      return Overlay(
-                        initialEntries: [
-                          OverlayEntry(builder: (context) {
-                            return FlashPage();
-                          }),
-                        ],
-                      );
-                    }));
-                  }),
-              // Firestoreに登録
-//                  if (checkTitle.contains(book_data['title'])) {
-//                    log.info('2重登録チェック');
-
-//                    new Builder(
-//                        // Create an inner BuildContext so that the onPressed methods
-//                        // can refer to the Scaffold with Scaffold.of().
-//                        builder: (BuildContext context) {
-//                      return new Center(
-//                        child: new RaisedButton(
-//                            child: new Text('Button'),
-//                            onPressed: () {
-//                              Scaffold.of(context).showSnackBar(new SnackBar(
-//                                content: new Text('Hello world!'),
-//                              ));
-//                            }),
-//                      );
-//                    });
-//                  } else {
-//                    setData('books', book_data);
-//                  }
-
-              // カスタムダイアログを閉じる
-//                  Navigator.pop(context);
-//                },
-//                child: Text(
-//                  '登録',
-//                  style: TextStyle(fontSize: 18.0, color: Colors.white),
-//                ),
-//              ),
-              SizedBox(
-                width: 20,
-              ),
-              RaisedButton(
-                color: Colors.red,
-                onPressed: () {
-                  // カスタムダイアログを閉じる
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  'キャンセル',
-                  style: TextStyle(fontSize: 18.0, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-  showDialog(
-      context: context, builder: (BuildContext context) => dialogWithImage);
-}
-
 class SpaceBox extends SizedBox {
   SpaceBox({double width = 8, double height = 8})
       : super(width: width, height: height);
@@ -337,6 +336,7 @@ void setData(String collection, Map data) {
   Firestore.instance.collection(collection).document().setData(data);
 }
 
+// TODO: ダイアログ一覧:全ては不要のため、リファクタリング
 class FlashPage extends StatefulWidget {
   @override
   _FlashPageState createState() => _FlashPageState();
