@@ -11,6 +11,8 @@ import 'header.dart';
 
 final log = Logger('HomePage');
 
+List<String> checkTitle = [];
+
 class HomePage extends StatelessWidget {
   // This widget is the root of your application.
   HomePage({Key key, this.auth, this.userId, this.logoutCallback})
@@ -92,6 +94,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         crossAxisCount: 2),
                     itemCount: snapshot.data.documents.length,
                     itemBuilder: (BuildContext context, int index) {
+                      // titleの重複確認のため、このリストに格納
+                      checkTitle.add(snapshot.data.documents[index]['title']);
+
                       return Container(
                         margin: EdgeInsets.all(8.0),
                         padding: EdgeInsets.all(8.0),
@@ -139,9 +144,16 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Container(
               margin: EdgeInsets.all(4.0),
               child: FloatingActionButton.extended(
+//                onPressed: () => Navigator.of(context)
+//                    .pushNamed('/booksearch_and_registration'),
                 onPressed: () =>
-                    Navigator.of(context)
-                        .pushNamed('/booksearch_and_registration'),
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) =>
+                                BooksearchAndRegistration(
+                                  checkTitle: checkTitle,
+                                ))),
                 backgroundColor: Colors.blue,
                 icon: Icon(Icons.add),
                 label: const Text('本の追加'),

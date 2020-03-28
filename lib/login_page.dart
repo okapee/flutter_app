@@ -336,7 +336,7 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
 //  }
 //
 //  void moveToRegister() {
-//    // TODO: login_signup_page.dart作成
+//    TODO: login_signup_page.dart作成
 //    _formKey.currentState.reset();
 //    setState(() {
 //      _formType = FormType.register;
