@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/booksearch_and_registration.dart';
@@ -34,7 +35,8 @@ class HomePage extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.blue,
         ),
-        home: MyHomePage(title: 'ブックレンタルアプリ', userId: this.userId),
+        home: MyHomePage(
+            title: 'ブックレンタルアプリ', auth: this.auth, userId: this.userId),
         routes: <String, WidgetBuilder>{
           '/book_detail': (BuildContext context) => BookDetail(),
           '/booksearch_and_registration': (BuildContext context) =>
@@ -44,24 +46,41 @@ class HomePage extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title, this.userId}) : super(key: key);
+  MyHomePage({Key key, this.title, this.auth, this.userId}) : super(key: key);
 
   final String title;
+  final BaseAuth auth;
   final String userId;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState(userId: userId);
+  _MyHomePageState createState() =>
+      _MyHomePageState(auth: auth, userId: userId);
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  _MyHomePageState({this.userId});
+  FirebaseUser user;
+  final BaseAuth auth;
+
+  _MyHomePageState({this.auth, this.userId});
+
+  @override
+  void initState() {
+    super.initState();
+    initUser();
+  }
+
+  initUser() async {
+    user = await auth.getCurrentUser();
+    log.info('FirebaseAuthのユーザ： ' + user.toString());
+    setState(() {});
+  }
 
   final String userId;
 
   @override
   Widget build(BuildContext context) {
-    String nickname;
-    getNickname(userId).then((d) => nickname = d.toString());
+    String nickname = null;
+//    getNickname(userId).then((d) => nickname = d.toString());
 
     return Scaffold(
       appBar: Header(),
@@ -191,9 +210,9 @@ class SpaceBox extends SizedBox {
   SpaceBox.height([double value = 8]) : super(height: value);
 }
 
-Future getNickname(String userId) async {
-  DocumentSnapshot docSnapshot =
-  await Firestore.instance.collection('users').document(userId).get();
-
-  return docSnapshot['nickname'];
-}
+//Future getNickname(String userId) async {
+//  DocumentSnapshot docSnapshot =
+//      await Firestore.instance.collection('users').document(userId).get();
+//
+//  return docSnapshot['nickname'];
+//}

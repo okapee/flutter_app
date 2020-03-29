@@ -12,6 +12,8 @@ import 'package:flutter_advanced_networkimage/provider.dart';
 import 'package:logging/logging.dart';
 import 'package:flash/flash.dart';
 import 'flash_helper.dart';
+import 'package:rating_dialog/rating_dialog.dart';
+import 'package:smooth_star_rating/smooth_star_rating.dart';
 
 final log = Logger('BooksearchAndRegistration');
 
@@ -61,9 +63,16 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
   _SearchAndRegistrationState({this.userId});
 
   final String userId;
+  Future<List<Book>> _bookdata;
   List<Book> bookList = [];
+  double rating = 0;
 
   final myController = TextEditingController();
+
+  void _reload() {
+    _bookdata = buildItemList(bookList, myController.text);
+    setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,12 +103,10 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
                             icon: Icon(Icons.search),
                             onPressed: () {
                               FocusScope.of(context).unfocus();
-                              setState(() {
-//                                bookList = [];
-                                buildItemList(bookList, myController.text);
-                                WidgetsBinding.instance.addPostFrameCallback(
-                                        (_) => myController.clear());
-                              });
+                              _reload();
+                              WidgetsBinding.instance.addPostFrameCallback(
+                                      (_) => myController.clear());
+                              setState(() {});
                             },
                           ),
                         ),
@@ -110,173 +117,430 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
             Expanded(
               flex: 8,
               child: Center(
-                  child: (bookList == null || bookList.length == 0)
-                      ? Text("Book List is displayed here!")
-                      : ListView.builder(
-                    // TODO: GestureDetectorが一部のアイテムにしか効いていない
-                      itemBuilder: (BuildContext context, int index) {
-                        return GestureDetector(
-                          onTap: () =>
-                              showCustomDialogWithImage(
-                                  context,
-                                  bookList[index].authors,
-                                  bookList[index].categories,
-                                  bookList[index].description,
-                                  bookList[index].pageCount,
-                                  bookList[index].publishedDate,
-                                  bookList[index].publisher,
-                                  bookList[index].thumbnail,
-                                  bookList[index].title),
-                          child: Card(
-                            elevation: 4.0,
-                            child: ListTile(
-                              contentPadding: EdgeInsets.all(4.0),
-                              leading: Image(
-                                image: AdvancedNetworkImage(
-                                  bookList[index].thumbnail,
-                                  height: 120,
-                                  useDiskCache: true,
-                                  cacheRule: CacheRule(
-                                      maxAge: const Duration(days: 7)),
+                child: (bookList == null)
+                    ? Text("Book List is displayed here!")
+                    : FutureBuilder<List<Book>>(
+                    future: _bookdata,
+                    builder: (context, _bookdata) {
+                      return ListView.builder(
+                          itemCount: bookList.length,
+                          itemBuilder: (context, index) {
+                            return Card(
+                              elevation: 4.0,
+                              child: ListTile(
+                                contentPadding: EdgeInsets.all(4.0),
+                                leading: Image(
+                                  image: AdvancedNetworkImage(
+                                    bookList[index].thumbnail,
+                                    height: 120,
+                                    useDiskCache: true,
+                                    cacheRule: CacheRule(
+                                        maxAge: const Duration(days: 7)),
+                                  ),
+                                  fit: BoxFit.scaleDown,
                                 ),
-                                fit: BoxFit.scaleDown,
+                                title: Text("${bookList[index].title}"),
+                                onTap: () {
+                                  final _reviewController =
+                                  TextEditingController();
+                                  showDialog(
+                                      context: context,
+                                      builder: (BuildContext context) {
+                                        return AlertDialog(content:
+                                        StatefulBuilder(builder:
+                                            (BuildContext context,
+                                            StateSetter setState) {
+                                          return Column(
+                                              mainAxisAlignment:
+                                              MainAxisAlignment
+                                                  .spaceEvenly,
+                                              children: <Widget>[
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: Container(
+//                                                      color: Colors.blue,
+                                                    child: Text(
+                                                      "本の登録",
+                                                      style: TextStyle(
+                                                        fontWeight:
+                                                        FontWeight.bold,
+                                                        fontSize: 28,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 4,
+                                                  child: Image(
+                                                    image:
+                                                    AdvancedNetworkImage(
+                                                      bookList[index]
+                                                          .thumbnail,
+                                                      height: 120,
+                                                      useDiskCache: true,
+                                                      cacheRule: CacheRule(
+                                                          maxAge:
+                                                          const Duration(
+                                                              days: 7)),
+                                                    ),
+                                                    fit: BoxFit.scaleDown,
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 4,
+                                                  child: Text(
+                                                      "${bookList[index]
+                                                          .title}" +
+                                                          " を登録する場合、おすすめ度とレビューを入力してください。"),
+                                                ),
+                                                Expanded(
+                                                  flex: 1,
+                                                  child: Text("おすすめ度",
+                                                      style: TextStyle(
+                                                        fontSize: 20,
+                                                      )),
+                                                ),
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: SmoothStarRating(
+                                                    rating: rating,
+                                                    size: 40,
+                                                    filledIconData:
+                                                    Icons.star,
+                                                    halfFilledIconData:
+                                                    Icons.star_half,
+                                                    defaultIconData:
+                                                    Icons.star_border,
+                                                    starCount: 5,
+                                                    allowHalfRating: false,
+                                                    spacing: 2.0,
+                                                    onRatingChanged:
+                                                        (value) {
+                                                      setState(() {
+                                                        rating = value;
+                                                      });
+                                                    },
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 4,
+                                                  child: TextField(
+                                                    controller:
+                                                    _reviewController,
+                                                    maxLength: 30,
+                                                    maxLengthEnforced:
+                                                    false,
+                                                    style: TextStyle(
+                                                        color:
+                                                        Colors.black),
+                                                    obscureText: false,
+                                                    maxLines: 1,
+                                                    decoration:
+                                                    InputDecoration(
+                                                      labelText:
+                                                      "レビューを入力してね！",
+                                                    ),
+                                                  ),
+                                                ),
+                                                Expanded(
+                                                  flex: 2,
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceEvenly,
+                                                    children: [
+                                                      RaisedButton(
+                                                        child: Text("登録"),
+                                                        color: Colors.blue,
+                                                        textColor:
+                                                        Colors.white,
+                                                        onPressed: () {
+                                                          if (checkTitle
+                                                              .contains(
+                                                              bookList[
+                                                              index]
+                                                                  .title)) {
+                                                            log.info(
+                                                                '2重登録チェック');
+                                                            Navigator.of(
+                                                                context)
+                                                                .pop();
+                                                            Scaffold.of(
+                                                                context)
+                                                                .showSnackBar(
+                                                              SnackBar(
+                                                                content:
+                                                                const Text(
+                                                                    '該当の本は既に登録されています。'),
+                                                                duration: const Duration(
+                                                                    seconds:
+                                                                    5),
+                                                              ),
+                                                            );
+                                                          } else {
+                                                            Map<String,
+                                                                dynamic>
+                                                            book_data =
+                                                            <String,
+                                                                dynamic>{
+                                                              "authors": bookList[
+                                                              index]
+                                                                  .authors,
+                                                              "categories":
+                                                              bookList[
+                                                              index]
+                                                                  .categories,
+                                                              "description":
+                                                              bookList[
+                                                              index]
+                                                                  .description,
+                                                              "pageCount": bookList[
+                                                              index]
+                                                                  .pageCount,
+                                                              "publishedDate":
+                                                              bookList[
+                                                              index]
+                                                                  .publishedDate,
+                                                              "publisher": bookList[
+                                                              index]
+                                                                  .publisher,
+                                                              "thumbnail": bookList[
+                                                              index]
+                                                                  .thumbnail,
+                                                              "title": bookList[
+                                                              index]
+                                                                  .title,
+                                                              "registerUser":
+                                                              userId,
+                                                              "rating":
+                                                              rating,
+                                                              "review":
+                                                              _reviewController
+                                                                  .text
+                                                            };
+                                                            setData('books',
+                                                                book_data);
+                                                            Navigator.push(
+                                                                context,
+                                                                new MaterialPageRoute(
+                                                                    builder:
+                                                                        (
+                                                                        context) =>
+                                                                    new HomePage()));
+                                                            Scaffold.of(
+                                                                context)
+                                                                .showSnackBar(
+                                                              SnackBar(
+                                                                content:
+                                                                const Text(
+                                                                    '登録が完了しました。'),
+                                                                duration: const Duration(
+                                                                    seconds:
+                                                                    5),
+                                                              ),
+                                                            );
+                                                          }
+                                                        },
+                                                      ),
+                                                      RaisedButton(
+                                                        color: Colors.blue,
+                                                        textColor:
+                                                        Colors.white,
+                                                        child:
+                                                        Text("Close"),
+                                                        onPressed: () {
+                                                          Navigator.of(
+                                                              context)
+                                                              .pop();
+                                                        },
+                                                      ),
+                                                    ],
+                                                  ),
+                                                )
+                                              ]);
+                                        }));
+                                      });
+                                },
+
+//                                    onTap: () {
+//                                      log.info('ListTileのonTap実行');
+//                                      showCustomDialogWithImage(
+//                                          context,
+//                                          bookList[index].authors,
+//                                          bookList[index].categories,
+//                                          bookList[index].description,
+//                                          bookList[index].pageCount,
+//                                          bookList[index].publishedDate,
+//                                          bookList[index].publisher,
+//                                          bookList[index].thumbnail,
+//                                          bookList[index].title);
+//                                    },
                               ),
-                              title: Text("${bookList[index].title}"),
-                            ),
-                          ),
-                        );
-                      },
-                      itemCount: bookList.length)),
-            )
+                            );
+                          });
+                    }),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  void showCustomDialogWithImage(BuildContext context,
-      List<String> authors,
-      List<String> categories,
-      String description,
-      int pageCount,
-      String publishedDate,
-      String publisher,
-      String thumbnail,
-      String title) {
-    // 登録者のレビューを格納する変数
-    String _review;
-    final myController = TextEditingController();
+class AwesomeDialog extends StatefulWidget {
+  @override
+  _AwesomeDialogState createState() => _AwesomeDialogState();
+}
 
-    // 登録用のMapを作成
-    Map<String, dynamic> book_data = <String, dynamic>{
-      "authors": authors,
-      "categories": categories,
-      "description": description,
-      "pageCount": pageCount,
-      "publishedDate": publishedDate,
-      "publisher": publisher,
-      "thumbnail": thumbnail,
-      "title": title,
-    };
+class _AwesomeDialogState extends State<AwesomeDialog> {
+  bool _isAwesome;
+  String _awesomeText;
 
-    log.info('カスタムダイアログを表示する。book_data is ' + book_data.toString());
+  @override
+  void initState() {
+    super.initState();
+    _isAwesome = false;
+    _awesomeText = 'please tap Awesome..';
+  }
 
-    FlashHelper.init(context);
+  Widget _buildAwesomeButton() {
+    return RaisedButton(
+      child: Text(_awesomeText),
+      onPressed: () {
+        setState(() {
+          _isAwesome = !_isAwesome;
+          _awesomeText = _isAwesome ? 'u a Awesome!' : 'please tap Awesome..';
+        });
+      },
+    );
+  }
 
-    Dialog dialogWithImage = Dialog(
-      child: Container(
-        height: 300.0,
-        width: 300.0,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: <Widget>[
-            Container(
-              padding: EdgeInsets.all(12),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(color: Colors.grey[300]),
-              child: Text(
-                "登録画面",
-                style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600),
-              ),
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialog(
+      title: const Text('It says'),
+      children: <Widget>[
+        const Text('Flutter is awesome.'),
+        _buildAwesomeButton(),
+      ],
+    );
+  }
+}
+
+// TODO: ここ削除予定
+void showCustomDialogWithImage(BuildContext context,
+    List<String> authors,
+    List<String> categories,
+    String description,
+    int pageCount,
+    String publishedDate,
+    String publisher,
+    String thumbnail,
+    String title) {
+  // 登録者のレビューを格納する変数
+  String _review;
+  final myController = TextEditingController();
+
+  log.info('aiueo');
+
+  // 登録用のMapを作成
+  Map<String, dynamic> book_data = <String, dynamic>{
+    "authors": authors,
+    "categories": categories,
+    "description": description,
+    "pageCount": pageCount,
+    "publishedDate": publishedDate,
+    "publisher": publisher,
+    "thumbnail": thumbnail,
+    "title": title,
+  };
+
+  log.info('カスタムダイアログを表示する。book_data is ' + book_data.toString());
+
+  FlashHelper.init(context);
+
+  Dialog dialogWithImage = Dialog(
+    child: Container(
+      height: 300.0,
+      width: 300.0,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: <Widget>[
+          Container(
+            padding: EdgeInsets.all(12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(color: Colors.grey[300]),
+            child: Text(
+              "登録画面",
+              style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600),
             ),
-            Container(
-              padding: EdgeInsets.all(10.0),
-              child: Column(
-                children: <Widget>[
-                  Text(title + ' を登録する場合、評価とおすすめポイントを入力し、OKを押してください。'),
-                  TextField(
-                    controller: myController,
-                    keyboardType: TextInputType.multiline,
-                    maxLines: null,
-                    textAlign: TextAlign.left,
-                  )
-                ],
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
+          ),
+          Container(
+            padding: EdgeInsets.all(10.0),
+            child: Column(
               children: <Widget>[
-                RaisedButton(
-                    color: Colors.blue,
-                    child: Text('登録',
-                        style: TextStyle(fontSize: 18.0, color: Colors.white)),
-                    onPressed: () {
-                      Scaffold.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text('登録が完了しました。'),
-                          duration: const Duration(seconds: 5),
-                        ),
-                      );
-
-                      if (checkTitle.contains(book_data['title'])) {
-                        log.info('2重登録チェック');
-                        Navigator.pop(context);
-                      } else {
-                        setData('books', book_data);
-                        Navigator.of(context).pushNamed('/homepage');
-                      }
-                    }),
-//                  onPressed: () {
-//                    Navigator.of(context)
-//                        .push(MaterialPageRoute(builder: (context) {
-//                      return Overlay(
-//                        initialEntries: [
-//                          OverlayEntry(builder: (context) {
-//                            return FlashPage();
-//                          }),
-//                        ],
-//                      );
-//                    }));
-//                  }
-
-                SizedBox(
-                  width: 20,
-                ),
-                RaisedButton(
-                  color: Colors.red,
-                  onPressed: () {
-                    // カスタムダイアログを閉じる
-                    Navigator.of(context).pop();
-                  },
-                  child: Text(
-                    'キャンセル',
-                    style: TextStyle(fontSize: 18.0, color: Colors.white),
-                  ),
-                ),
+                Text(title + ' を登録する場合、評価とおすすめポイントを入力し、OKを押してください。'),
+                TextField(
+                  controller: myController,
+                  keyboardType: TextInputType.multiline,
+                  maxLines: null,
+                  textAlign: TextAlign.left,
+                )
               ],
             ),
-          ],
-        ),
-      ),
-    );
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: <Widget>[
+              RaisedButton(
+                  color: Colors.blue,
+                  child: Text('登録',
+                      style: TextStyle(fontSize: 18.0, color: Colors.white)),
+                  onPressed: () {
+                    Scaffold.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Text('登録が完了しました。'),
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
 
-    showDialog(
-        context: context, builder: (BuildContext context) => dialogWithImage);
-  }
+                    if (checkTitle.contains(book_data['title'])) {
+                      log.info('2重登録チェック');
+                      Navigator.pop(context);
+                    } else {
+                      setData('books', book_data);
+                      Navigator.of(context).pushNamed('/homepage');
+                    }
+                  }),
+              SizedBox(
+                width: 20,
+              ),
+              RaisedButton(
+                color: Colors.red,
+                onPressed: () {
+                  // カスタムダイアログを閉じる
+                  Navigator.of(context).pop();
+                },
+                child: Text(
+                  'キャンセル',
+                  style: TextStyle(fontSize: 18.0, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+
+  log.info('showDialog実行');
+  showDialog(
+      context: context, builder: (BuildContext context) => dialogWithImage);
 }
 
 Future<List<Book>> buildItemList(List<Book> bookList, String input) async {
@@ -288,7 +552,7 @@ Future<List<Book>> buildItemList(List<Book> bookList, String input) async {
   if (response.statusCode == 200) {
     bookList.clear();
     Map<String, dynamic> map = json.decode(response.body);
-    List<dynamic> data = map["items"];
+    List data = map["items"];
 
     for (int i = 0; i < data.length; i++) {
       bookList.add(Book(
@@ -317,9 +581,13 @@ class Book {
   final String publisher;
   final String thumbnail;
   final String title;
+  String registerUser;
+  String review;
+  double rating = 0.0;
 
   Book(this.authors, this.categories, this.description, this.pageCount,
-      this.publishedDate, this.publisher, this.thumbnail, this.title);
+      this.publishedDate, this.publisher, this.thumbnail, this.title,
+      {this.registerUser, this.review, this.rating});
 }
 
 class SpaceBox extends SizedBox {
@@ -334,463 +602,4 @@ class SpaceBox extends SizedBox {
 // Firestore登録用関数
 void setData(String collection, Map data) {
   Firestore.instance.collection(collection).document().setData(data);
-}
-
-// TODO: ダイアログ一覧:全ては不要のため、リファクタリング
-class FlashPage extends StatefulWidget {
-  @override
-  _FlashPageState createState() => _FlashPageState();
-}
-
-class _FlashPageState extends State<FlashPage> {
-  GlobalKey<ScaffoldState> _key = GlobalKey<ScaffoldState>();
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () => Future.value(true),
-      child: Scaffold(
-        key: _key,
-        resizeToAvoidBottomInset: false,
-        appBar: AppBar(
-          title: Text('Flash Demo'),
-          actions: <Widget>[
-            IconButton(
-                icon: Icon(Icons.info_outline),
-                onPressed: () {
-                  showDialog(
-                      context: context,
-                      builder: (_) {
-                        return AlertDialog(
-                          title: Text('Flash'),
-                          content: Text(
-                              '⚡️A highly customizable, powerful and easy-to-use alerting library for Flutter.'),
-                          actions: <Widget>[
-                            FlatButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text('YES'),
-                            ),
-                            FlatButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: Text('NO'),
-                            ),
-                          ],
-                        );
-                      });
-                })
-          ],
-        ),
-        body: Column(
-          children: <Widget>[
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16.0),
-                physics: AlwaysScrollableScrollPhysics(),
-                child: Wrap(
-                  spacing: 8.0,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  alignment: WrapAlignment.start,
-                  runAlignment: WrapAlignment.center,
-                  children: <Widget>[
-                    Row(
-                      children: <Widget>[
-                        Text('FlashBar'),
-                      ],
-                    ),
-                    RaisedButton(
-                      onPressed: () => _showBasicsFlash(),
-                      child: Text('Basics'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showBasicsFlash(duration: Duration(seconds: 2)),
-                      child: Text('Basics | Duration'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showBasicsFlash(flashStyle: FlashStyle.grounded),
-                      child: Text('Basics | Grounded'),
-                    ),
-                    Row(children: <Widget>[]),
-                    RaisedButton(
-                      onPressed: () => _showTopFlash(),
-                      child: Text('Top'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showTopFlash(style: FlashStyle.grounded),
-                      child: Text('Top | Grounded'),
-                    ),
-                    Row(children: <Widget>[]),
-                    RaisedButton(
-                      onPressed: () => _showBottomFlash(),
-                      child: Text('Bottom'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showBottomFlash(
-                              margin: const EdgeInsets.only(
-                                  left: 12.0, right: 12.0, bottom: 34.0)),
-                      child: Text('Bottom | Margin'),
-                    ),
-                    RaisedButton(
-                      onPressed: () => _showBottomFlash(persistent: false),
-                      child: Text('Bottom | No Persistent'),
-                    ),
-                    Row(
-                      children: <Widget>[
-                        Text('FLash Input'),
-                      ],
-                    ),
-                    RaisedButton(
-                      onPressed: () => _showInputFlash(),
-                      child: Text('Input'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showInputFlash(
-                            persistent: false,
-                            onWillPop: () => Future.value(true),
-                          ),
-                      child: Text('Input | No Persistent | Will Pop'),
-                    ),
-                    Row(
-                      children: <Widget>[
-                        Text('Flash Toast'),
-                      ],
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showCenterFlash(
-                              position: FlashPosition.top,
-                              style: FlashStyle.floating),
-                      child: Text('Top'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showCenterFlash(alignment: Alignment.center),
-                      child: Text('Center'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          _showCenterFlash(
-                              position: FlashPosition.bottom,
-                              style: FlashStyle.floating),
-                      child: Text('Bottom'),
-                    ),
-                    Row(
-                      children: <Widget>[
-                        Text('FLash Helper'),
-                      ],
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          FlashHelper.toast(
-                              'You can put any message of any length here.'),
-                      child: Text('Toast'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          FlashHelper.successBar(context,
-                              message: 'I succeeded!'),
-                      child: Text('Success Bar'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          FlashHelper.informationBar(context,
-                              message: 'Place information here!'),
-                      child: Text('Information Bar'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          FlashHelper.errorBar(context,
-                              message: 'Place error here!'),
-                      child: Text('Error Bar'),
-                    ),
-                    RaisedButton(
-                      onPressed: () =>
-                          FlashHelper.actionBar(context,
-                              message: 'Place error here!',
-                              primaryAction: Text('Done'),
-                              onPrimaryActionTap: (controller) =>
-                                  controller.dismiss()),
-                      child: Text('Action Bar'),
-                    ),
-                    RaisedButton(
-                      onPressed: () => _showDialogFlash(),
-                      child: Text('Simple Dialog'),
-                    ),
-                    RaisedButton(
-                      onPressed: () {
-                        var completer = Completer();
-                        Future.delayed(Duration(seconds: 5))
-                            .then((_) => completer.complete());
-                        FlashHelper.blockDialog(
-                          context,
-                          dismissCompleter: completer,
-                        );
-                      },
-                      child: Text('Block Dialog'),
-                    ),
-                    RaisedButton(
-                      onPressed: () {
-                        Future.delayed(
-                            Duration(seconds: 2), () => _showDialogFlash());
-                      },
-                      child: Text('Simple Dialog Delay'),
-                    ),
-                    RaisedButton(
-                      onPressed: () {
-                        FlashHelper.inputDialog(context,
-                            persistent: false,
-                            title: 'Hello Flash',
-                            message:
-                            'You can put any message of any length here.')
-                            .then((value) {
-                          if (value != null) _showMessage(value);
-                        });
-                      },
-                      child: Text('Input Dialog'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            SafeArea(child: Container(), top: false),
-          ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () =>
-              Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (context) => NextPage())),
-          child: Icon(Icons.navigate_next),
-        ),
-      ),
-    );
-  }
-
-  void _showBasicsFlash({
-    Duration duration,
-    flashStyle = FlashStyle.floating,
-  }) {
-    showFlash(
-      context: context,
-      duration: duration,
-      builder: (context, controller) {
-        return Flash(
-          controller: controller,
-          style: flashStyle,
-          boxShadows: kElevationToShadow[4],
-          horizontalDismissDirection: HorizontalDismissDirection.horizontal,
-          child: FlashBar(
-            message: Text('This is a basic flash'),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showTopFlash({FlashStyle style = FlashStyle.floating}) {
-    showFlash(
-      context: context,
-      duration: const Duration(seconds: 2),
-      persistent: false,
-      builder: (_, controller) {
-        return Flash(
-          controller: controller,
-          backgroundColor: Colors.white,
-          brightness: Brightness.light,
-          boxShadows: [BoxShadow(blurRadius: 4)],
-          barrierBlur: 3.0,
-          barrierColor: Colors.black38,
-          barrierDismissible: true,
-          style: style,
-          position: FlashPosition.top,
-          child: FlashBar(
-            title: Text('Title'),
-            message: Text('Hello world!'),
-            showProgressIndicator: true,
-            primaryAction: FlatButton(
-              onPressed: () => controller.dismiss(),
-              child: Text('DISMISS', style: TextStyle(color: Colors.amber)),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showBottomFlash(
-      {bool persistent = true, EdgeInsets margin = EdgeInsets.zero}) {
-    showFlash(
-      context: context,
-      persistent: persistent,
-      builder: (_, controller) {
-        return Flash(
-          controller: controller,
-          margin: margin,
-          borderRadius: BorderRadius.circular(8.0),
-          borderColor: Colors.blue,
-          boxShadows: kElevationToShadow[8],
-          backgroundGradient: RadialGradient(
-            colors: [Colors.amber, Colors.black87],
-            center: Alignment.topLeft,
-            radius: 2,
-          ),
-          onTap: () => controller.dismiss(),
-          forwardAnimationCurve: Curves.easeInCirc,
-          reverseAnimationCurve: Curves.bounceIn,
-          child: DefaultTextStyle(
-            style: TextStyle(color: Colors.white),
-            child: FlashBar(
-              title: Text('Hello Flash'),
-              message: Text('You can put any message of any length here.'),
-              leftBarIndicatorColor: Colors.red,
-              icon: Icon(Icons.info_outline),
-              primaryAction: FlatButton(
-                onPressed: () => controller.dismiss(),
-                child: Text('DISMISS'),
-              ),
-              actions: <Widget>[
-                FlatButton(
-                    onPressed: () => controller.dismiss('Yes, I do!'),
-                    child: Text('YES')),
-                FlatButton(
-                    onPressed: () => controller.dismiss('No, I do not!'),
-                    child: Text('NO')),
-              ],
-            ),
-          ),
-        );
-      },
-    ).then((_) {
-      if (_ != null) {
-        _showMessage(_.toString());
-      }
-    });
-  }
-
-  void _showInputFlash({
-    bool persistent = true,
-    WillPopCallback onWillPop,
-  }) {
-    var editingController = TextEditingController();
-    showFlash(
-      context: context,
-      persistent: persistent,
-      onWillPop: onWillPop,
-      builder: (_, controller) {
-        return Flash.bar(
-          controller: controller,
-          barrierColor: Colors.black54,
-          borderWidth: 3,
-          style: FlashStyle.grounded,
-          forwardAnimationCurve: Curves.fastLinearToSlowEaseIn,
-          child: FlashBar(
-            title: Text('Hello Flash', style: TextStyle(fontSize: 24.0)),
-            message: Text('You can put any message of any length here.'),
-            userInputForm: Form(
-              child: TextFormField(
-                controller: editingController,
-                autofocus: true,
-              ),
-            ),
-            leftBarIndicatorColor: Colors.red,
-            primaryAction: IconButton(
-              onPressed: () {
-                if (editingController.text.isEmpty) {
-                  controller.dismiss();
-                } else {
-                  var message = editingController.text;
-                  _showMessage(message);
-                  editingController.text = '';
-                }
-              },
-              icon: Icon(Icons.send, color: Colors.amber),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCenterFlash({
-    FlashPosition position,
-    FlashStyle style,
-    Alignment alignment,
-  }) {
-    showFlash(
-      context: context,
-      duration: Duration(seconds: 5),
-      builder: (_, controller) {
-        return Flash(
-          controller: controller,
-          backgroundColor: Colors.black87,
-          borderRadius: BorderRadius.circular(8.0),
-          borderColor: Colors.blue,
-          position: position,
-          style: style,
-          alignment: alignment,
-          enableDrag: false,
-          onTap: () => controller.dismiss(),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: DefaultTextStyle(
-              style: TextStyle(color: Colors.white),
-              child: Text(
-                'You can put any message of any length here.',
-              ),
-            ),
-          ),
-        );
-      },
-    ).then((_) {
-      if (_ != null) {
-        _showMessage(_.toString());
-      }
-    });
-  }
-
-  void _showDialogFlash() {
-    FlashHelper.simpleDialog(context,
-        title: 'Flash Dialog',
-        message:
-        '⚡️A highly customizable, powerful and easy-to-use alerting library for Flutter.',
-        negativeAction: Text('NO'),
-        negativeActionTap: (controller) => controller.dismiss(),
-        positiveAction: Text('YES'),
-        positiveActionTap: (controller) => controller.dismiss());
-  }
-
-  void _showMessage(String message) {
-    if (!mounted) return;
-    showFlash(
-        context: context,
-        duration: Duration(seconds: 3),
-        builder: (_, controller) {
-          return Flash(
-            controller: controller,
-            position: FlashPosition.top,
-            style: FlashStyle.grounded,
-            child: FlashBar(
-              icon: Icon(
-                Icons.face,
-                size: 36.0,
-                color: Colors.black,
-              ),
-              message: Text(message),
-            ),
-          );
-        });
-  }
-}
-
-class NextPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(),
-      body: Container(color: Colors.blueGrey),
-    );
-  }
 }
