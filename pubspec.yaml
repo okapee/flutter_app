@@ -21,7 +21,7 @@ dependencies:
   flash: ^1.2.3
   rating_dialog: ^1.0.0
   smooth_star_rating: 1.0.4+2
-  flutter_launcher_icons: any
+  flutter_launcher_icons: ^0.7.4
 
 dev_dependencies:
   flutter_test:
@@ -30,10 +30,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    - assets/
+    - assets/image/bukuren.png
 
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icon/icon.png"
+  image_path: "assets/icon/Flutter-icon.png"
 

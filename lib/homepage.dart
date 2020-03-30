@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'login_signup_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -9,6 +10,7 @@ import 'authentication.dart';
 import 'package:flutter_advanced_networkimage/provider.dart';
 import 'package:flutter_icons/flutter_icons.dart';
 import 'header.dart';
+import 'book_detail.dart';
 
 final log = Logger('HomePage');
 
@@ -38,6 +40,7 @@ class HomePage extends StatelessWidget {
         home: MyHomePage(
             title: 'ブックレンタルアプリ', auth: this.auth, userId: this.userId),
         routes: <String, WidgetBuilder>{
+          '/login_signup': (BuildContext context) => LoginSignupPage(),
           '/book_detail': (BuildContext context) => BookDetail(),
           '/booksearch_and_registration': (BuildContext context) =>
               BooksearchAndRegistration(),
@@ -71,16 +74,23 @@ class _MyHomePageState extends State<MyHomePage> {
 
   initUser() async {
     user = await auth.getCurrentUser();
-    log.info('FirebaseAuthのユーザ： ' + user.toString());
+    log.info('FirebaseAuthのユーザ： ' + userId.toString());
     setState(() {});
   }
 
   final String userId;
+  String displayName = '名無しさん';
 
   @override
   Widget build(BuildContext context) {
-    String nickname = null;
-//    getNickname(userId).then((d) => nickname = d.toString());
+//    getDisplayName(userId).then((d) => displayName = d.toString());
+    Firestore.instance
+        .collection('users')
+        .document(userId)
+        .get()
+        .then((onValue) {
+      displayName = onValue.data['displayName'].toString();
+    });
 
     return Scaffold(
       appBar: Header(),
@@ -88,13 +98,34 @@ class _MyHomePageState extends State<MyHomePage> {
         children: <Widget>[
           Expanded(
             flex: 0,
-            child: Container(
-              margin: const EdgeInsets.all(2.0),
-              child: ListTile(
-                leading: Icon(MaterialIcons.book),
-                title: Text('ようこそ、$nickname さん'),
-                dense: true,
-              ),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    margin: const EdgeInsets.all(2.0),
+                    child: ListTile(
+                      leading: Icon(MaterialIcons.book),
+                      title: Text('ようこそ、$displayName さん'),
+                      dense: true,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 1,
+                  child: FlatButton(
+                    child: Text(
+                      'サインアウト',
+                      style: TextStyle(color: Colors.blue),
+                    ),
+                    onPressed: () =>
+                    {
+                      auth.signOut(),
+                      Navigator.of(context).pushNamed('/login_signup'),
+                    },
+                  ),
+                )
+              ],
             ),
           ),
           Expanded(
@@ -185,22 +216,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class BookDetail extends StatefulWidget {
-  // This widget is the root of your application.
-  @override
-  _BookDetailState createState() => new _BookDetailState();
-}
-
-class _BookDetailState extends State<BookDetail> {
-  @override
-  Widget build(BuildContext context) {
-    return new Scaffold(
-      appBar: AppBar(title: Text('BookDetail')),
-      body: Container(),
-    );
-  }
-}
-
 class SpaceBox extends SizedBox {
   SpaceBox({double width = 8, double height = 8})
       : super(width: width, height: height);
@@ -210,9 +225,9 @@ class SpaceBox extends SizedBox {
   SpaceBox.height([double value = 8]) : super(height: value);
 }
 
-//Future getNickname(String userId) async {
-//  DocumentSnapshot docSnapshot =
-//      await Firestore.instance.collection('users').document(userId).get();
-//
-//  return docSnapshot['nickname'];
-//}
+Future getDisplayName(String userId) async {
+  DocumentSnapshot docSnapshot =
+  await Firestore.instance.collection('users').document(userId).get();
+
+  return docSnapshot['displayName'];
+}

@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-
 import 'authentication.dart';
+import 'package:logging/logging.dart';
+
+final log = Logger('LoginSignupPage');
 
 class LoginSignupPage extends StatefulWidget {
   LoginSignupPage({this.auth, this.loginCallback});
@@ -9,12 +12,15 @@ class LoginSignupPage extends StatefulWidget {
   final VoidCallback loginCallback;
 
   @override
-  State<StatefulWidget> createState() => new _LoginSignupPageState();
+  State<StatefulWidget> createState() => _LoginSignupPageState();
 }
 
 class _LoginSignupPageState extends State<LoginSignupPage> {
-  final _formKey = new GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>();
+  final _text = TextEditingController();
 
+  String _groupId;
+  String _displayName;
   String _email;
   String _password;
   String _errorMessage;
@@ -43,12 +49,20 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
       try {
         if (_isLoginForm) {
           userId = await widget.auth.signIn(_email, _password);
-          print('Signed in: $userId');
+//          Firestore.instance.collection('users').document(userId).setData({
+//            'email': _email,
+//            'displayName': _displayName,
+//            'groupId': _groupId
+//          });
         } else {
           userId = await widget.auth.signUp(_email, _password);
-          //widget.auth.sendEmailVerification();
-          //_showVerifyEmailSentDialog();
-          print('Signed up user: $userId');
+          Firestore.instance.collection('users').document(userId).setData({
+            'email': _email,
+            'displayName': _displayName,
+            'groupId': _groupId
+          });
+          widget.auth.sendEmailVerification();
+          _showVerifyEmailSentDialog();
         }
         setState(() {
           _isLoading = false;
@@ -90,9 +104,14 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-        appBar: new AppBar(
-          title: new Text('Flutter login demo'),
+    Logger.root.level = Level.ALL;
+    Logger.root.onRecord.listen((LogRecord rec) {
+      print('${rec.level.name}: ${rec.time}: ${rec.message}');
+    });
+
+    return Scaffold(
+        appBar: AppBar(
+          title: Text('ブックレンタルサービス ぶくれん！'),
         ),
         body: Stack(
           children: <Widget>[
@@ -112,45 +131,59 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
     );
   }
 
-//  void _showVerifyEmailSentDialog() {
-//    showDialog(
-//      context: context,
-//      builder: (BuildContext context) {
-//        // return object of type Dialog
-//        return AlertDialog(
-//          title: new Text("Verify your account"),
-//          content:
-//              new Text("Link to verify account has been sent to your email"),
-//          actions: <Widget>[
-//            new FlatButton(
-//              child: new Text("Dismiss"),
-//              onPressed: () {
-//                toggleFormMode();
-//                Navigator.of(context).pop();
-//              },
-//            ),
-//          ],
-//        );
-//      },
-//    );
-//  }
+  // displayNameをFirestoreに登録
+  void _showVerifyEmailSentDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        // return object of type Dialog
+        return AlertDialog(
+          title: new Text("Verify your account"),
+          content:
+          new Text("Link to verify account has been sent to your email"),
+          actions: <Widget>[
+            new FlatButton(
+              child: new Text("Dismiss"),
+              onPressed: () {
+                toggleFormMode();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   Widget _showForm() {
-    return new Container(
-        padding: EdgeInsets.all(16.0),
-        child: new Form(
-          key: _formKey,
-          child: new ListView(
-            shrinkWrap: true,
-            children: <Widget>[
-              showLogo(),
-              showEmailInput(),
-              showPasswordInput(),
-              showPrimaryButton(),
-              showSecondaryButton(),
-              showErrorMessage(),
-            ],
-          ),
+    return Container(
+        padding: EdgeInsets.all(30.0),
+        child: Column(
+          children: <Widget>[
+            Expanded(
+              flex: 3,
+              child: Image.asset('assets/image/bukuren.png'),
+            ),
+            Expanded(
+              flex: 5,
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  shrinkWrap: true,
+                  children: <Widget>[
+                    // 状態がサインアップであればgroupIdとdisplayNameも入れさせる
+                    _isLoginForm ? Container() : showDNameInput(),
+                    showGIDInput(),
+                    showEmailInput(),
+                    showPasswordInput(),
+                    showPrimaryButton(),
+                    showSecondaryButton(),
+                    showErrorMessage(),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ));
   }
 
@@ -171,23 +204,56 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
     }
   }
 
-  Widget showLogo() {
-    return new Hero(
-      tag: 'hero',
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(0.0, 70.0, 0.0, 0.0),
-        child: CircleAvatar(
-          backgroundColor: Colors.transparent,
-          radius: 48.0,
-          child: Image.asset('assets/flutter-icon.png'),
-        ),
+  Widget showGIDInput() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 0.0),
+      child: new TextFormField(
+        controller: _text,
+        maxLines: 1,
+        keyboardType: TextInputType.text,
+        autofocus: false,
+        decoration: new InputDecoration(
+            hintText: 'グループID',
+            icon: new Icon(
+              Icons.people,
+              color: Colors.grey,
+            )),
+        validator: (value) {
+          if (value.isEmpty) {
+            return '本を共有したい皆で同じグループIDを入れてね(^o^)';
+          } else if (_text.text.length < 6) {
+            log.info('groupIdが6文字以下');
+            return '6文字以上で入力してね！';
+          }
+          ;
+        },
+        onSaved: (value) => _groupId = value.trim(),
+      ),
+    );
+  }
+
+  Widget showDNameInput() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 0.0),
+      child: new TextFormField(
+        maxLines: 1,
+        keyboardType: TextInputType.text,
+        autofocus: false,
+        decoration: new InputDecoration(
+            hintText: 'ニックネーム',
+            icon: new Icon(
+              Icons.tag_faces,
+              color: Colors.grey,
+            )),
+        validator: (value) => value.isEmpty ? 'ニックネームを入れてね(^o^)' : null,
+        onSaved: (value) => _displayName = value.trim(),
       ),
     );
   }
 
   Widget showEmailInput() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0.0, 100.0, 0.0, 0.0),
+      padding: const EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 0.0),
       child: new TextFormField(
         maxLines: 1,
         keyboardType: TextInputType.emailAddress,
@@ -198,7 +264,7 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
               Icons.mail,
               color: Colors.grey,
             )),
-        validator: (value) => value.isEmpty ? 'Email can\'t be empty' : null,
+        validator: (value) => value.isEmpty ? 'Emailが空です。' : null,
         onSaved: (value) => _email = value.trim(),
       ),
     );
@@ -206,7 +272,7 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
 
   Widget showPasswordInput() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(0.0, 15.0, 0.0, 0.0),
+      padding: const EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 0.0),
       child: new TextFormField(
         maxLines: 1,
         obscureText: true,
@@ -217,7 +283,7 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
               Icons.lock,
               color: Colors.grey,
             )),
-        validator: (value) => value.isEmpty ? 'Password can\'t be empty' : null,
+        validator: (value) => value.isEmpty ? 'Passwordが空です。' : null,
         onSaved: (value) => _password = value.trim(),
       ),
     );
@@ -236,13 +302,13 @@ class _LoginSignupPageState extends State<LoginSignupPage> {
         padding: EdgeInsets.fromLTRB(0.0, 45.0, 0.0, 0.0),
         child: SizedBox(
           height: 40.0,
-          child: new RaisedButton(
+          child: RaisedButton(
             elevation: 5.0,
-            shape: new RoundedRectangleBorder(
-                borderRadius: new BorderRadius.circular(30.0)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30.0)),
             color: Colors.blue,
-            child: new Text(_isLoginForm ? 'Login' : 'Create account',
-                style: new TextStyle(fontSize: 20.0, color: Colors.white)),
+            child: Text(_isLoginForm ? 'Login' : 'Create account',
+                style: TextStyle(fontSize: 20.0, color: Colors.white)),
             onPressed: validateAndSubmit,
           ),
         ));

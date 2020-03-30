@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_app/homepage.dart';
@@ -10,21 +11,19 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_advanced_networkimage/provider.dart';
 import 'package:logging/logging.dart';
-import 'package:flash/flash.dart';
-import 'flash_helper.dart';
-import 'package:rating_dialog/rating_dialog.dart';
 import 'package:smooth_star_rating/smooth_star_rating.dart';
+import 'authentication.dart';
 
 final log = Logger('BooksearchAndRegistration');
 
 class BooksearchAndRegistration extends StatelessWidget {
   BooksearchAndRegistration(
-      {Key key, this.auth, this.userId, this.logoutCallback, this.checkTitle})
+      {Key key, this.auth, this.logoutCallback, this.checkTitle})
       : super(key: key);
 
   final BaseAuth auth;
   final VoidCallback logoutCallback;
-  final String userId;
+  String userId;
   final List<String> checkTitle;
 
   @override
@@ -32,6 +31,11 @@ class BooksearchAndRegistration extends StatelessWidget {
     Logger.root.level = Level.ALL;
     Logger.root.onRecord.listen((LogRecord rec) {
       print('${rec.level.name}: ${rec.time}: ${rec.message}');
+    });
+
+    FirebaseAuth.instance.currentUser().then((value) {
+      userId = value.uid.toString();
+      log.info('userId is ' + userId);
     });
 
     log.info('本のタイトル重複チェック： checkTitle is ' + checkTitle.toString());
@@ -43,7 +47,7 @@ class BooksearchAndRegistration extends StatelessWidget {
         ),
         home: SearchAndRegistration(title: 'ブックレンタルアプリ', userId: this.userId),
         routes: <String, WidgetBuilder>{
-          '/book_detail': (BuildContext context) => BookDetail(),
+//          '/book_detail': (BuildContext context) => BookDetail(),
           '/homepage': (BuildContext context) => HomePage(),
         });
   }
@@ -62,7 +66,7 @@ class SearchAndRegistration extends StatefulWidget {
 class _SearchAndRegistrationState extends State<SearchAndRegistration> {
   _SearchAndRegistrationState({this.userId});
 
-  final String userId;
+  String userId;
   Future<List<Book>> _bookdata;
   List<Book> bookList = [];
   double rating = 0;
@@ -76,6 +80,11 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
 
   @override
   Widget build(BuildContext context) {
+    FirebaseAuth.instance.currentUser().then((value) {
+      userId = value.uid.toString();
+      log.info('userId is in build ' + userId);
+    });
+
     return Scaffold(
       appBar: Header(),
       body: Container(
@@ -361,20 +370,6 @@ class _SearchAndRegistrationState extends State<SearchAndRegistration> {
                                         }));
                                       });
                                 },
-
-//                                    onTap: () {
-//                                      log.info('ListTileのonTap実行');
-//                                      showCustomDialogWithImage(
-//                                          context,
-//                                          bookList[index].authors,
-//                                          bookList[index].categories,
-//                                          bookList[index].description,
-//                                          bookList[index].pageCount,
-//                                          bookList[index].publishedDate,
-//                                          bookList[index].publisher,
-//                                          bookList[index].thumbnail,
-//                                          bookList[index].title);
-//                                    },
                               ),
                             );
                           });
@@ -426,121 +421,6 @@ class _AwesomeDialogState extends State<AwesomeDialog> {
       ],
     );
   }
-}
-
-// TODO: ここ削除予定
-void showCustomDialogWithImage(BuildContext context,
-    List<String> authors,
-    List<String> categories,
-    String description,
-    int pageCount,
-    String publishedDate,
-    String publisher,
-    String thumbnail,
-    String title) {
-  // 登録者のレビューを格納する変数
-  String _review;
-  final myController = TextEditingController();
-
-  log.info('aiueo');
-
-  // 登録用のMapを作成
-  Map<String, dynamic> book_data = <String, dynamic>{
-    "authors": authors,
-    "categories": categories,
-    "description": description,
-    "pageCount": pageCount,
-    "publishedDate": publishedDate,
-    "publisher": publisher,
-    "thumbnail": thumbnail,
-    "title": title,
-  };
-
-  log.info('カスタムダイアログを表示する。book_data is ' + book_data.toString());
-
-  FlashHelper.init(context);
-
-  Dialog dialogWithImage = Dialog(
-    child: Container(
-      height: 300.0,
-      width: 300.0,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Container(
-            padding: EdgeInsets.all(12),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: Colors.grey[300]),
-            child: Text(
-              "登録画面",
-              style: TextStyle(
-                  color: Colors.black,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600),
-            ),
-          ),
-          Container(
-            padding: EdgeInsets.all(10.0),
-            child: Column(
-              children: <Widget>[
-                Text(title + ' を登録する場合、評価とおすすめポイントを入力し、OKを押してください。'),
-                TextField(
-                  controller: myController,
-                  keyboardType: TextInputType.multiline,
-                  maxLines: null,
-                  textAlign: TextAlign.left,
-                )
-              ],
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: <Widget>[
-              RaisedButton(
-                  color: Colors.blue,
-                  child: Text('登録',
-                      style: TextStyle(fontSize: 18.0, color: Colors.white)),
-                  onPressed: () {
-                    Scaffold.of(context).showSnackBar(
-                      SnackBar(
-                        content: const Text('登録が完了しました。'),
-                        duration: const Duration(seconds: 5),
-                      ),
-                    );
-
-                    if (checkTitle.contains(book_data['title'])) {
-                      log.info('2重登録チェック');
-                      Navigator.pop(context);
-                    } else {
-                      setData('books', book_data);
-                      Navigator.of(context).pushNamed('/homepage');
-                    }
-                  }),
-              SizedBox(
-                width: 20,
-              ),
-              RaisedButton(
-                color: Colors.red,
-                onPressed: () {
-                  // カスタムダイアログを閉じる
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  'キャンセル',
-                  style: TextStyle(fontSize: 18.0, color: Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-
-  log.info('showDialog実行');
-  showDialog(
-      context: context, builder: (BuildContext context) => dialogWithImage);
 }
 
 Future<List<Book>> buildItemList(List<Book> bookList, String input) async {
@@ -601,5 +481,8 @@ class SpaceBox extends SizedBox {
 
 // Firestore登録用関数
 void setData(String collection, Map data) {
+  // TODO: documentの引数にGroupIDを指定して、本をGroupID毎に登録できるようにする
+  // TODO: ユーザ登録、またはユーザ設定変更時にGroupIDを指定（複数指定可）するように変更する
+  // TODO: 本の登録はGroupIDでtitleが一位になるようにする
   Firestore.instance.collection(collection).document().setData(data);
 }
