@@ -18,10 +18,11 @@ dependencies:
   flutter_advanced_networkimage: any
   flutter_icons: ^1.0.0+1
   http: ^0.12.0
-  flash: ^1.2.3
-  rating_dialog: ^1.0.0
   smooth_star_rating: 1.0.4+2
   flutter_launcher_icons: ^0.7.4
+  firebase_messaging: ^5.1.8
+  cloud_functions: 0.4.2+3
+
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
+
 import 'login_signup_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +15,7 @@ import 'header.dart';
 import 'book_detail.dart';
 
 final log = Logger('HomePage');
+final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
 
 List<String> checkTitle = [];
 
@@ -41,7 +44,7 @@ class HomePage extends StatelessWidget {
             title: 'ブックレンタルアプリ', auth: this.auth, userId: this.userId),
         routes: <String, WidgetBuilder>{
           '/login_signup': (BuildContext context) => LoginSignupPage(),
-          '/book_detail': (BuildContext context) => BookDetail(),
+//          '/book_detail': (BuildContext context) => BookDetail(),
           '/booksearch_and_registration': (BuildContext context) =>
               BooksearchAndRegistration(),
         });
@@ -69,7 +72,44 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    initUser();
+//    initUser();
+    // Firebase Messagingの通知許可の設定を行う
+    _firebaseMessaging.requestNotificationPermissions(
+        const IosNotificationSettings(sound: true, badge: true, alert: true));
+    _firebaseMessaging.onIosSettingsRegistered
+        .listen((IosNotificationSettings settings) {
+      print("Settings registered: $settings");
+    });
+
+    // ここで通知受信時の挙動を設定しています。
+    _firebaseMessaging.configure(
+      onMessage: (Map<String, dynamic> message) async {
+        log.info("onMessage: $message['notification']['title']");
+        log.info('ここ注目： ' + message['notification']['title'].toString());
+        _buildDialog(context, message);
+      },
+      onLaunch: (Map<String, dynamic> message) async {
+        print("onLaunch: $message");
+        _buildDialog(context, "onLaunch");
+      },
+      onResume: (Map<String, dynamic> message) async {
+        print("onResume: $message");
+        _buildDialog(context, "onResume");
+      },
+    );
+
+    // 自らのTokenをGetし、Firestoreに保存する
+    _firebaseMessaging.getToken().then((token) {
+      log.info('token is ' + token);
+      log.info('userId is ' + userId);
+
+      var data = {
+        'token': token,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+      Firestore.instance.collection('users').document(userId).updateData(data);
+    });
   }
 
   initUser() async {
@@ -79,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   final String userId;
-  String displayName = '名無しさん';
+  String displayName = '名無し';
 
   @override
   Widget build(BuildContext context) {
@@ -160,7 +200,23 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                         child: GestureDetector(
                             onTap: () {
-                              Navigator.of(context).pushNamed('/book_detail');
+                              log.info('homepageのbookは ' +
+                                  snapshot.data.documents[index].toString());
+                              // タップされた本情報としてsnapshot.data.documents[index]を渡す
+//                              Navigator.of(context).pushNamed('/book_detail',
+//                                  arguments: {
+//                                    'book': snapshot.data.documents[index]
+//                                  });
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) =>
+                                          BookDetail(
+                                            book:
+                                            snapshot.data.documents[index],
+                                            cloudmsg: _firebaseMessaging,
+                                            displayName: displayName,
+                                          )));
                             },
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -230,4 +286,28 @@ Future getDisplayName(String userId) async {
   await Firestore.instance.collection('users').document(userId).get();
 
   return docSnapshot['displayName'];
+}
+
+// FCMで表示するダイアログ
+void _buildDialog(BuildContext context, dynamic message) {
+  showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          content: ListTile(
+            leading: Icon(Icons.book),
+            title: Text(message['notification']['title']),
+            subtitle: Text(message['notification']['body']),
+          ),
+          actions: <Widget>[
+            new FlatButton(
+              child: const Text('CLOSE'),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+            ),
+          ],
+        );
+      });
 }
